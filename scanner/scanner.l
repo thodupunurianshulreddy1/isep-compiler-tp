@@ -15,7 +15,7 @@ WS          [ \t\r\n]+
 
 %%
 
-{WS}            { /* 跳过空白字符与换行 */ }
+{WS}            {  }
 
 
 "int"           { std::cout << "TYPE_TOKEN: " << yytext << std::endl; }
