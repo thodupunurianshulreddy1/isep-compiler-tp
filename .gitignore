@@ -1,0 +1,5 @@
+# build outputs
+scanner/lex.yy.cc
+scanner/scanner
+scanner/*.o
+.DS_Store
