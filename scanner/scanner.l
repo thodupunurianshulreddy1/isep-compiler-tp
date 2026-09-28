@@ -38,7 +38,7 @@ WS          [ \t\r\n]+
 "*"             { std::cout << "MULTIPLY_TOKEN: " << yytext << std::endl; }
 "/"             { std::cout << "DIVIDE_TOKEN: " << yytext << std::endl; }
 
-    /* 界符 */
+   
 "("             { std::cout << "L_PAREN_TOKEN: " << yytext << std::endl; }
 ")"             { std::cout << "R_PAREN_TOKEN: " << yytext << std::endl; }
 "{"             { std::cout << "L_BRACE_TOKEN: " << yytext << std::endl; }
@@ -46,7 +46,7 @@ WS          [ \t\r\n]+
 ";"             { std::cout << "SEMICOLON_TOKEN: " << yytext << std::endl; }
 ","             { std::cout << "COMMA_TOKEN: " << yytext << std::endl; }
 
-    /* 字面量与标识符 */
+   
 {NUMBER}        { std::cout << "NUMBER_TOKEN: " << yytext << std::endl; }
 {STRING}        { std::cout << "STRING_TOKEN: " << yytext << std::endl; }
 {ID}            { std::cout << "VAR_TOKEN: " << yytext << std::endl; }
