@@ -1,102 +1,30 @@
-(* Grammar of our pseudo C++ language - TP01 task 1
-   EBNF:  = def   ; end   , concat   | or   [ ] optional   { } repeat   ( ) group *)
-
-
-(* ---- program structure ---- *)
-(* no main / functions, just a list of statements like in the slide 20 example *)
-
-Program         = { Statement } ;
-
-Statement       = Declaration
-                | AssignStatement
-                | IfStatement
-                | WhileStatement
-                | ForStatement
-                | PrintStatement
-                | Block ;
-
-Block           = "{" , { Statement } , "}" ;
-
-
-(* ---- statements ---- *)
-
-(* int a;   int a, b;   int a = 0, b = a + 1; *)
-Declaration     = "int" , InitDeclarator , { "," , InitDeclarator } , ";" ;
-InitDeclarator  = Identifier , [ "=" , Expression ] ;
-
-(* no ';' in Assignment so we can reuse it in the for loop header *)
-AssignStatement = Assignment , ";" ;
-Assignment      = Identifier , AssignOp , Expression      (* x = 1;  x += 2; *)
-                | Identifier , IncDecOp                   (* x++;   x--;     *)
-                | IncDecOp , Identifier ;                 (* ++x;   --x;     *)
-
-(* else is optional, else if works because of the IfStatement inside *)
-IfStatement     = "if" , "(" , Condition , ")" , Block ,
-                  [ "else" , ( Block | IfStatement ) ] ;
-
-WhileStatement  = "while" , "(" , Condition , ")" , Block ;
-
-(* for (init; cond; update) - all 3 parts can be empty *)
-ForStatement    = "for" , "(" , [ ForInit ] , ";" , [ Condition ] , ";" ,
-                  [ Assignment ] , ")" , Block ;
-ForInit         = "int" , InitDeclarator
-                | Assignment ;
-
-(* print for numbers, prints for strings (both used in the slides) *)
-PrintStatement  = "print"  , "(" , Expression , ")" , ";"
-                | "prints" , "(" , String , ")" , ";" ;
-
-
-(* ---- conditions ---- *)
-(* priority: || < && < ! < comparison *)
-
-Condition       = AndCondition , { "||" , AndCondition } ;
-AndCondition    = NotCondition , { "&&" , NotCondition } ;
-NotCondition    = "!" , NotCondition
-                | Comparison ;
-Comparison      = Expression , [ CompareOp , Expression ] ;
-                  (* compare op optional -> while (n) works like in C *)
-
-
-(* ---- expressions ---- *)
-(* 3 levels so that * / are done before + -  (like the tree on slide 14)
-   and a - b - c = (a - b) - c *)
-
-Expression      = Term , { AddOp , Term } ;
-Term            = Factor , { MulOp , Factor } ;
-Factor          = Integer
-                | Identifier
-                | "(" , Condition , ")"
-                | "-" , Factor ;
-
-
-(* ---- operators ---- *)
-
-AddOp           = "+" | "-" ;
-MulOp           = "*" | "/" ;
-CompareOp       = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
-AssignOp        = "=" | "+=" | "-=" ;
-IncDecOp        = "++" | "--" ;
-
-
-(* ---- tokens (done in scanner.l) ---- *)
-
-Identifier      = Letter , { Letter | Digit | "_" } ;   (* not a Keyword *)
-Integer         = Digit , { Digit } ;
-String          = '"' , { StringChar } , '"' ;
-StringChar      = ? any character except '"', '\' and newline ?
-                | "\" , ? any character ? ;              (* for \" inside a string *)
-
-Keyword         = "int" | "if" | "else" | "while" | "for" | "print" | "prints" ;
-
-Letter          = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
-                | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
-                | "U" | "V" | "W" | "X" | "Y" | "Z"
-                | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
-                | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
-                | "u" | "v" | "w" | "x" | "y" | "z" ;
 
 Digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+Letter          = "a" | ... | "z" | "A" | ... | "Z" ;
+Identifier      = ( Letter | "_" ) { Letter | Digit | "_" } ;
+Number          = Digit { Digit } ;
+StringLiteral   = '"' { ? any character except quote ? } '"' ;
 
-(* spaces, newlines, // comments and block comments are skipped
-   by the scanner so they are not in the grammar *)
+CompareOp       = ">" | "<" | ">=" | "<=" | "==" | "!=" ;
+AddOp           = "+" | "-" ;
+MulOp           = "*" | "/" ;
+
+Factor          = Identifier | Number | "(" ArithmeticExpr ")" ;
+Term            = Factor { MulOp Factor } ;
+ArithmeticExpr  = Term { AddOp Term } ;
+Condition       = ArithmeticExpr CompareOp ArithmeticExpr ;
+
+Declaration     = "int" Identifier { "," Identifier } ";" ;
+Assignment      = Identifier "=" ArithmeticExpr ";" ;
+IfStatement     = "if" "(" Condition ")" "{" StatementList "}" ;
+WhileStatement  = "while" "(" Condition ")" "{" StatementList "}" ;
+PrintStatement  = "print" "(" ( ArithmeticExpr | StringLiteral ) ")" ";" ;
+
+Statement       = Declaration
+                | Assignment
+                | IfStatement
+                | WhileStatement
+                | PrintStatement ;
+
+StatementList   = { Statement } ;
+Program         = StatementList ;
