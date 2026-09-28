@@ -3,93 +3,138 @@
    TP 01 - Task 02 : Lexical analyser (scanner) written with FLEX, C++ mode
    Author : Anshul
 
-   Build & run (exactly as on slide 42):
+   Build & run (slide 42):
        flex --c++ scanner.l
        g++ -o scanner lex.yy.cc -lfl
-       ./scanner < ../tests/input_minimal.txt
+       ./scanner < input.txt          (or: ./scanner input.txt)
 
-   Structure (slide 36):  definitions  %%  rules  %%  user code
+   Output: one token per line, "TOKEN_NAME: lexeme" (format of slide 39).
+   Lexical errors go to stderr with their line number.
    ===================================================================== */
 
 %{
-/* ---------- C++ code copied verbatim to the top of lex.yy.cc ---------- */
 #include <iostream>
+#include <fstream>
 #include <string>
 
-/* Print one token in the format of slide 39:  NAME: lexeme */
+static int errorCount = 0;
+static int commentStartLine = 0;   /* line where the current block comment began */
+
+/* Print one token:  NAME: lexeme */
 static void emit(const char* name, const char* lexeme) {
     std::cout << name << ": " << lexeme << std::endl;
 }
+
+/* Report a lexical error and keep scanning */
+static void lexError(int line, const std::string& msg) {
+    std::cerr << "LEXICAL ERROR (line " << line << "): " << msg << std::endl;
+    ++errorCount;
+}
 %}
 
-/* ---------- Options ---------- */
 %option c++
 %option noyywrap
 %option yylineno
-/* noyywrap = stop at end of input (so we do not depend on libfl's yywrap) */
 
-/* ---------- Definitions: named regular expressions (macros) ---------- */
+/* Exclusive start condition: while inside a block comment
+   only the <COMMENT> rules are active. */
+%x COMMENT
+
+/* ---------------- Definitions (named regular expressions) ---------------- */
 DIGIT       [0-9]
 LETTER      [A-Za-z]
 ID          {LETTER}({LETTER}|{DIGIT}|_)*
 INTEGER     {DIGIT}+
-
-/* TODO: STRING  \"...\"   hint: a quote, then any char that is NOT a quote
-         or a newline, repeated, then a quote.  [^"\n] means "any char except
-         a quote or newline".                                               */
+STRING      \"(\\.|[^"\\\n])*\"
+WS          [ \t\r]+
 
 %%
-    /* ================== RULES:  regex  ->  C++ action ==================
-       Two rules flex applies when several patterns match:
-         1. LONGEST match wins        (">=" beats ">")
-         2. On a tie, the rule written FIRST wins  -> keywords BEFORE {ID}
-       ================================================================== */
+    /* ======================================================================
+       RULES  (regex -> action)
+       Flex picks the LONGEST match; on a tie, the rule written FIRST wins.
+       => keywords are listed before {ID};  ">=" is one token, not ">" "=".
+       ====================================================================== */
 
-    /* ---- Keywords (worked example) ---- */
-"int"           { emit("INT_TOKEN", yytext); }
+    /* ---------- Comments and white space (skipped) ---------- */
+"//".*                  { /* line comment: ignore until end of line */ }
+"/*"                    { commentStartLine = lineno(); BEGIN(COMMENT); }
+<COMMENT>"*/"           { BEGIN(INITIAL); }
+<COMMENT>\n             { /* newline inside comment (line counter still updated) */ }
+<COMMENT>.              { /* ignore comment content */ }
+<COMMENT><<EOF>>        { lexError(commentStartLine, "unterminated block comment");
+                          BEGIN(INITIAL); return 0; }
+{WS}                    { /* spaces, tabs */ }
+\n                      { /* new line */ }
 
-    /* TODO: "if"  "else"  "while"  "print"  "prints"
-       Must be placed BEFORE the {ID} rule. Why? (tie-breaking rule 2)   */
+    /* ---------- Keywords (must come before {ID}) ---------- */
+"int"                   { emit("INT_TOKEN", yytext); }
+"if"                    { emit("IF_TOKEN", yytext); }
+"else"                  { emit("ELSE_TOKEN", yytext); }
+"while"                 { emit("WHILE_TOKEN", yytext); }
+"for"                   { emit("FOR_TOKEN", yytext); }
+"prints"                { emit("PRINTS_TOKEN", yytext); }
+"print"                 { emit("PRINT_TOKEN", yytext); }
 
+    /* ---------- Literals and identifiers ---------- */
+{DIGIT}+{ID}            { lexError(lineno(), std::string("invalid identifier '") + yytext
+                                             + "' (cannot start with a digit)"); }
+{INTEGER}               { emit("NUMBER_TOKEN", yytext); }
+{ID}                    { emit("VAR_TOKEN", yytext); }
+{STRING}                { emit("STRING_TOKEN", yytext); }
+\"[^"\n]*               { lexError(lineno(), "unterminated string"); }
 
-    /* ---- Literals and identifiers (worked example) ---- */
-{INTEGER}       { emit("NUMBER_TOKEN", yytext); }
-{ID}            { emit("VAR_TOKEN", yytext); }
+    /* ---------- Compound operators (2 characters) ---------- */
+"++"                    { emit("INCREMENT_TOKEN", yytext); }
+"--"                    { emit("DECREMENT_TOKEN", yytext); }
+"+="                    { emit("PLUS_ASSIGN_TOKEN", yytext); }
+"-="                    { emit("MINUS_ASSIGN_TOKEN", yytext); }
+"&&"                    { emit("AND_TOKEN", yytext); }
+"||"                    { emit("OR_TOKEN", yytext); }
 
-    /* TODO: {STRING} -> STRING_TOKEN */
+    /* ---------- Comparison operators ---------- */
+"=="|"!="|">="|"<="|">"|"<"   { emit("COMPARISON_TOKEN", yytext); }
 
+    /* ---------- Single-character operators ---------- */
+"="                     { emit("ASSIGN_TOKEN", yytext); }
+"!"                     { emit("NOT_TOKEN", yytext); }
+"+"                     { emit("PLUS_TOKEN", yytext); }
+"-"                     { emit("MINUS_TOKEN", yytext); }
+"*"                     { emit("MULT_TOKEN", yytext); }
+"/"                     { emit("DIV_TOKEN", yytext); }
 
-    /* ---- Operators ---- */
-    /* TODO: comparison  >  <  >=  <=  ==  !=   -> COMPARISON_TOKEN
-       TODO: assignment  =                      -> ASSIGN_TOKEN
-       TODO: arithmetic  +  -  *  /             -> PLUS_TOKEN, MINUS_TOKEN ...
-       Question for your report: why does "==" never get split into two "=" ? */
+    /* ---------- Punctuation (names from slide 39) ---------- */
+"("                     { emit("L1_TOKEN", yytext); }
+")"                     { emit("R1_TOKEN", yytext); }
+"{"                     { emit("L2_TOKEN", yytext); }
+"}"                     { emit("R2_TOKEN", yytext); }
+";"                     { emit("SEMICOLON_TOKEN", yytext); }
+","                     { emit("COMMA_TOKEN", yytext); }
 
-
-    /* ---- Punctuation (worked example for ';') ---- */
-";"             { emit("SEMICOLON_TOKEN", yytext); }
-
-    /* TODO: (  )  {  }  ,   -> L1_TOKEN, R1_TOKEN, L2_TOKEN, R2_TOKEN, COMMA_TOKEN
-       (names taken from slide 39; you may choose clearer ones)          */
-
-
-    /* ---- Things to skip ---- */
-[ \t\r]+        { /* whitespace: ignore */ }
-\n              { /* newline: ignore (lineno() still counts it) */ }
-
-    /* TODO (extension): line comments  "//".*   and block comments */
-
-
-    /* ---- Anything else is a lexical error (keep this rule LAST) ---- */
-.               { std::cerr << "LEXICAL ERROR line " << lineno()
-                            << ": unexpected character '" << yytext << "'"
-                            << std::endl; }
+    /* ---------- Anything else: lexical error (must stay LAST) ---------- */
+.                       { lexError(lineno(), std::string("unexpected character '")
+                                             + yytext + "'"); }
 
 %%
-/* ---------- User code ---------- */
 
-int main() {
-    yyFlexLexer lexer;   /* reads std::cin by default -> ./scanner < input.txt */
-    lexer.yylex();       /* our actions never 'return', so this scans the whole file */
+int main(int argc, char* argv[]) {
+    std::ifstream file;
+    std::istream* in = &std::cin;               /* default: ./scanner < input.txt */
+
+    if (argc > 1) {                             /* optional: ./scanner input.txt */
+        file.open(argv[1]);
+        if (!file) {
+            std::cerr << "Cannot open file " << argv[1] << std::endl;
+            return 1;
+        }
+        in = &file;
+    }
+
+    yyFlexLexer lexer(in, &std::cout);
+    lexer.yylex();                              /* actions don't return: scans everything */
+
+    if (errorCount > 0) {
+        std::cerr << errorCount << " lexical error(s) found." << std::endl;
+        return 1;
+    }
     return 0;
 }

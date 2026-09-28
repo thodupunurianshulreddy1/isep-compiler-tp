@@ -1,3 +1,6 @@
 int x;
 x = 5 @ 3;
 x = x # 1;
+int 9lives;
+prints("oops);
+/* never closed

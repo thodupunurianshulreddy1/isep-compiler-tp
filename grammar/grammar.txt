@@ -2,115 +2,129 @@
    ISEP - Formal Approaches, Languages and Compilers
    TP 01 - Task 01 : Grammar of the pseudo-C++ language (EBNF)
    Author : Anshul
-   =====================================================================
 
-   EBNF notation used (ISO 14977 style, as in the slides):
-     =        definition            ;        end of rule
-     |        choice                [ ... ]  optional (0 or 1)
-     { ... }  repetition (0 or more) ( ... )  grouping
-     "..."    terminal symbol       ,        concatenation
-     comments are written between round-bracket-star and star-round-bracket
-
-   HOW TO USE THIS FILE
-   - Section 1 (terminals) is given as a worked example from the slides.
-   - Sections 2-4 contain TODOs. Replace every "TODO" with your own rule.
-   - Write the MINIMUM part yourself (slide 26), then ask me to review it.
-   - Delete these instructions and all hint comments before submitting.
+   Notation (ISO 14977 EBNF):
+     =  definition     ;  end of rule      ,  concatenation
+     |  choice         [ ]  optional (0 or 1)
+     { }  repetition (0 or more)            ( )  grouping
+     "..."  terminal symbol
    ===================================================================== *)
 
 
-(* ---------------------------------------------------------------------
-   1. TERMINALS  (the building blocks the SCANNER will recognise)
-   --------------------------------------------------------------------- *)
+(* =====================================================================
+   1. PROGRAM STRUCTURE
+   A program is a flat sequence of statements (no main, no functions).
+   ===================================================================== *)
 
-Letter      = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
-            | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
-            | "U" | "V" | "W" | "X" | "Y" | "Z"
-            | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
-            | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
-            | "u" | "v" | "w" | "x" | "y" | "z" ;
+Program         = { Statement } ;
 
-Digit       = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+Statement       = Declaration
+                | AssignStatement
+                | IfStatement
+                | WhileStatement
+                | ForStatement
+                | PrintStatement
+                | Block ;
 
-Identifier  = Letter , { Letter | Digit | "_" } ;
-
-(* TODO: Integer  = ... ;
-   hint: one or more digits. How do you write "one or more" with { } ? *)
-
-(* TODO: String   = ... ;
-   hint: a double quote, any characters except a double quote, a double quote.
-   EBNF has no "any character", so you may define a helper rule
-   (e.g. StringChar) and explain it in the report. *)
-
-(* TODO: CompareOp = ">" | ... ;
-   hint: slide 21 lists > < >= <= == and "different" ( != ).
-   Careful: slide 21 also lists "=" -- that is ASSIGNMENT, not comparison.
-   Decide and justify in your report which symbols belong here. *)
-
-(* TODO: AddOp = ... ;   MulOp = ... ;
-   hint: keep + - separate from * / . This is what gives * and / a
-   higher priority than + and - (see section 4). *)
+Block           = "{" , { Statement } , "}" ;
 
 
-(* ---------------------------------------------------------------------
-   2. PROGRAM STRUCTURE
-   --------------------------------------------------------------------- *)
+(* =====================================================================
+   2. STATEMENTS
+   ===================================================================== *)
 
-(* TODO: Program = ... ;
-   hint: the example on slide 20 has no main(), just declarations and
-   statements one after another. What is the simplest rule for that? *)
+(* int a;   int a, b;   int a = 0, b = a + 1; *)
+Declaration     = "int" , InitDeclarator , { "," , InitDeclarator } , ";" ;
+InitDeclarator  = Identifier , [ "=" , Expression ] ;
 
-(* TODO: StatementList = ... ; *)
+(* Assignment is defined WITHOUT the ';' so that it can be reused
+   inside the header of a for loop. *)
+AssignStatement = Assignment , ";" ;
+Assignment      = Identifier , AssignOp , Expression      (* x = 1;  x += 2; *)
+                | Identifier , IncDecOp                   (* x++;   x--;     *)
+                | IncDecOp , Identifier ;                 (* ++x;   --x;     *)
 
-(* TODO: Statement = Declaration | Assignment | IfStatement | ... ;
-   hint: slide 27 shows the pattern. *)
+(* if / else-if / else. The else is optional. *)
+IfStatement     = "if" , "(" , Condition , ")" , Block ,
+                  [ "else" , ( Block | IfStatement ) ] ;
 
+WhileStatement  = "while" , "(" , Condition , ")" , Block ;
 
-(* ---------------------------------------------------------------------
-   3. STATEMENTS  (minimum requirements, slide 21)
-   --------------------------------------------------------------------- *)
+(* for (init ; condition ; update) { ... }   - every part is optional *)
+ForStatement    = "for" , "(" , [ ForInit ] , ";" , [ Condition ] , ";" ,
+                  [ Assignment ] , ")" , Block ;
+ForInit         = "int" , InitDeclarator
+                | Assignment ;
 
-(* Given on slide 25 : *)
-Declaration = "int" , Identifier , { "," , Identifier } , ";" ;
-
-(* TODO: Assignment  = ... ;           e.g.  var1 = var1 - 1;          *)
-
-(* TODO: IfStatement = ... ;           e.g.  if (a > b) { ... }
-   question to think about: do you allow "else"? (optional -> [ ]) *)
-
-(* TODO: WhileStatement = ... ;        e.g.  while (var1 > var2) { ... } *)
-
-(* TODO: PrintStatement = ... ;        e.g.  print(var1);  prints("text");
-   question: the slides use BOTH print(...) and prints("...").
-   Do you keep two keywords or one? Justify it in the report. *)
-
-(* TODO: Block = ... ;                 "{" StatementList "}" *)
+(* print  -> prints the value of an integer expression
+   prints -> prints a string literal                                    *)
+PrintStatement  = "print"  , "(" , Expression , ")" , ";"
+                | "prints" , "(" , String , ")" , ";" ;
 
 
-(* ---------------------------------------------------------------------
-   4. EXPRESSIONS AND CONDITIONS
-   --------------------------------------------------------------------- *)
+(* =====================================================================
+   3. CONDITIONS  (lowest priority first)
+      ||   <   &&   <   !   <   comparison
+   ===================================================================== *)
 
-(* TODO: Condition = Expression , CompareOp , Expression ;   (slide 27) *)
-
-(* TODO: Expression = Term , { AddOp , Term } ;
-         Term       = Factor , { MulOp , Factor } ;
-         Factor     = ... ;
-   hint: this 3-level layering is the classic way to encode operator
-   PRECEDENCE in a grammar. Look again at the AST on slide 14.
-   A Factor is the smallest piece: a number, a variable, or a
-   parenthesised expression. You MUST be able to explain why. *)
+Condition       = AndCondition , { "||" , AndCondition } ;
+AndCondition    = NotCondition , { "&&" , NotCondition } ;
+NotCondition    = "!" , NotCondition
+                | Comparison ;
+Comparison      = Expression , [ CompareOp , Expression ] ;
+                  (* without a CompareOp the value is tested against 0,
+                     as in C/C++ :  while (n) { ... }                   *)
 
 
-(* ---------------------------------------------------------------------
-   5. EXTENSIONS  (slide 22 - only after the minimum part works)
-   --------------------------------------------------------------------- *)
+(* =====================================================================
+   4. ARITHMETIC EXPRESSIONS  (lowest priority first)
+      + -   <   * /   <   unary - , parentheses
+   Each level only refers to the next (stronger) level, so the tree
+   always groups * and / before + and -, and { } makes every binary
+   operator left-associative:  a - b - c  =  (a - b) - c
+   ===================================================================== *)
 
-(* TODO later:
-   - Declaration with initialisation   int x = 0;
-   - Compound operators                ++  --  +=  -=
-   - For loop                          for (init; cond; update) { ... }
-   - Logical operators                 &&  ||  !
-   - Comments  // ...  and  /* ... *\/  -> usually handled by the SCANNER
-     (they are skipped), so explain that in the report rather than
-     writing a grammar rule for them.                                  *)
+Expression      = Term , { AddOp , Term } ;
+Term            = Factor , { MulOp , Factor } ;
+Factor          = Integer
+                | Identifier
+                | "(" , Condition , ")"
+                | "-" , Factor ;
+
+
+(* =====================================================================
+   5. OPERATORS
+   ===================================================================== *)
+
+AddOp           = "+" | "-" ;
+MulOp           = "*" | "/" ;
+CompareOp       = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+AssignOp        = "=" | "+=" | "-=" ;
+IncDecOp        = "++" | "--" ;
+
+
+(* =====================================================================
+   6. LEXICAL RULES  (recognised by the scanner, scanner/scanner.l)
+   ===================================================================== *)
+
+Identifier      = Letter , { Letter | Digit | "_" } ;   (* not a Keyword *)
+Integer         = Digit , { Digit } ;
+String          = '"' , { StringChar } , '"' ;
+StringChar      = ? any character except '"', '\' and newline ?
+                | "\" , ? any character ? ;              (* escape: \" \\ \n *)
+
+Keyword         = "int" | "if" | "else" | "while" | "for" | "print" | "prints" ;
+
+Letter          = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
+                | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
+                | "U" | "V" | "W" | "X" | "Y" | "Z"
+                | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
+                | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
+                | "u" | "v" | "w" | "x" | "y" | "z" ;
+
+Digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+(* Ignored by the scanner (never reach the parser):
+     white space   : " " | tab | carriage return | newline
+     line comment  : "//" followed by anything up to the end of the line
+     block comment : "/*" followed by anything up to the first "*/"      *)
