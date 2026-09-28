@@ -1,20 +1,9 @@
-(* =====================================================================
-   ISEP - Formal Approaches, Languages and Compilers
-   TP 01 - Task 01 : Grammar of the pseudo-C++ language (EBNF)
-   Author : Anshul
-
-   Notation (ISO 14977 EBNF):
-     =  definition     ;  end of rule      ,  concatenation
-     |  choice         [ ]  optional (0 or 1)
-     { }  repetition (0 or more)            ( )  grouping
-     "..."  terminal symbol
-   ===================================================================== *)
+(* Grammar of our pseudo C++ language - TP01 task 1
+   EBNF:  = def   ; end   , concat   | or   [ ] optional   { } repeat   ( ) group *)
 
 
-(* =====================================================================
-   1. PROGRAM STRUCTURE
-   A program is a flat sequence of statements (no main, no functions).
-   ===================================================================== *)
+(* ---- program structure ---- *)
+(* no main / functions, just a list of statements like in the slide 20 example *)
 
 Program         = { Statement } ;
 
@@ -29,60 +18,49 @@ Statement       = Declaration
 Block           = "{" , { Statement } , "}" ;
 
 
-(* =====================================================================
-   2. STATEMENTS
-   ===================================================================== *)
+(* ---- statements ---- *)
 
 (* int a;   int a, b;   int a = 0, b = a + 1; *)
 Declaration     = "int" , InitDeclarator , { "," , InitDeclarator } , ";" ;
 InitDeclarator  = Identifier , [ "=" , Expression ] ;
 
-(* Assignment is defined WITHOUT the ';' so that it can be reused
-   inside the header of a for loop. *)
+(* no ';' in Assignment so we can reuse it in the for loop header *)
 AssignStatement = Assignment , ";" ;
 Assignment      = Identifier , AssignOp , Expression      (* x = 1;  x += 2; *)
                 | Identifier , IncDecOp                   (* x++;   x--;     *)
                 | IncDecOp , Identifier ;                 (* ++x;   --x;     *)
 
-(* if / else-if / else. The else is optional. *)
+(* else is optional, else if works because of the IfStatement inside *)
 IfStatement     = "if" , "(" , Condition , ")" , Block ,
                   [ "else" , ( Block | IfStatement ) ] ;
 
 WhileStatement  = "while" , "(" , Condition , ")" , Block ;
 
-(* for (init ; condition ; update) { ... }   - every part is optional *)
+(* for (init; cond; update) - all 3 parts can be empty *)
 ForStatement    = "for" , "(" , [ ForInit ] , ";" , [ Condition ] , ";" ,
                   [ Assignment ] , ")" , Block ;
 ForInit         = "int" , InitDeclarator
                 | Assignment ;
 
-(* print  -> prints the value of an integer expression
-   prints -> prints a string literal                                    *)
+(* print for numbers, prints for strings (both used in the slides) *)
 PrintStatement  = "print"  , "(" , Expression , ")" , ";"
                 | "prints" , "(" , String , ")" , ";" ;
 
 
-(* =====================================================================
-   3. CONDITIONS  (lowest priority first)
-      ||   <   &&   <   !   <   comparison
-   ===================================================================== *)
+(* ---- conditions ---- *)
+(* priority: || < && < ! < comparison *)
 
 Condition       = AndCondition , { "||" , AndCondition } ;
 AndCondition    = NotCondition , { "&&" , NotCondition } ;
 NotCondition    = "!" , NotCondition
                 | Comparison ;
 Comparison      = Expression , [ CompareOp , Expression ] ;
-                  (* without a CompareOp the value is tested against 0,
-                     as in C/C++ :  while (n) { ... }                   *)
+                  (* compare op optional -> while (n) works like in C *)
 
 
-(* =====================================================================
-   4. ARITHMETIC EXPRESSIONS  (lowest priority first)
-      + -   <   * /   <   unary - , parentheses
-   Each level only refers to the next (stronger) level, so the tree
-   always groups * and / before + and -, and { } makes every binary
-   operator left-associative:  a - b - c  =  (a - b) - c
-   ===================================================================== *)
+(* ---- expressions ---- *)
+(* 3 levels so that * / are done before + -  (like the tree on slide 14)
+   and a - b - c = (a - b) - c *)
 
 Expression      = Term , { AddOp , Term } ;
 Term            = Factor , { MulOp , Factor } ;
@@ -92,9 +70,7 @@ Factor          = Integer
                 | "-" , Factor ;
 
 
-(* =====================================================================
-   5. OPERATORS
-   ===================================================================== *)
+(* ---- operators ---- *)
 
 AddOp           = "+" | "-" ;
 MulOp           = "*" | "/" ;
@@ -103,15 +79,13 @@ AssignOp        = "=" | "+=" | "-=" ;
 IncDecOp        = "++" | "--" ;
 
 
-(* =====================================================================
-   6. LEXICAL RULES  (recognised by the scanner, scanner/scanner.l)
-   ===================================================================== *)
+(* ---- tokens (done in scanner.l) ---- *)
 
 Identifier      = Letter , { Letter | Digit | "_" } ;   (* not a Keyword *)
 Integer         = Digit , { Digit } ;
 String          = '"' , { StringChar } , '"' ;
 StringChar      = ? any character except '"', '\' and newline ?
-                | "\" , ? any character ? ;              (* escape: \" \\ \n *)
+                | "\" , ? any character ? ;              (* for \" inside a string *)
 
 Keyword         = "int" | "if" | "else" | "while" | "for" | "print" | "prints" ;
 
@@ -124,7 +98,5 @@ Letter          = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
 
 Digit           = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 
-(* Ignored by the scanner (never reach the parser):
-     white space   : " " | tab | carriage return | newline
-     line comment  : "//" followed by anything up to the end of the line
-     block comment : "/*" followed by anything up to the first "*/"      *)
+(* spaces, newlines, // comments and block comments are skipped
+   by the scanner so they are not in the grammar *)

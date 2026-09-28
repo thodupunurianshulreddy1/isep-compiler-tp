@@ -1,56 +1,47 @@
-# ---------------------------------------------------------------
-# Build the FLEX scanner in C++ mode (same commands as slide 42)
-#   make            -> build scanner/scanner
-#   make run        -> run it on tests/input_minimal.txt
-#   make test       -> run it on every file in tests/
-#   make check      -> compare output with tests/expected/*.out (regression test)
-#   make clean
-# ---------------------------------------------------------------
-FLEX     ?= flex
-CXX      ?= g++
-CXXFLAGS ?= -std=c++17 -Wall
-LDLIBS   ?= -lfl
+# make / make run / make test / make check / make clean
 
-# macOS + Homebrew: brew's flex is "keg-only", so point at it explicitly
+FLEX ?= flex
+CXX ?= g++
+CXXFLAGS ?= -Wall
+LDLIBS ?= -lfl
+
+# brew installs flex in its own folder on mac
 ifeq ($(shell uname),Darwin)
   BREW_FLEX := $(shell brew --prefix flex 2>/dev/null)
   ifneq ($(BREW_FLEX),)
-    FLEX      := $(BREW_FLEX)/bin/flex
-    CXXFLAGS  += -I$(BREW_FLEX)/include
-    LDFLAGS   += -L$(BREW_FLEX)/lib
+    FLEX := $(BREW_FLEX)/bin/flex
+    CXXFLAGS += -I$(BREW_FLEX)/include
+    LDFLAGS += -L$(BREW_FLEX)/lib
   endif
 endif
 
-SCANNER = scanner/scanner
-
-all: $(SCANNER)
+all: scanner/scanner
 
 scanner/lex.yy.cc: scanner/scanner.l
 	cd scanner && $(FLEX) --c++ scanner.l
 
-$(SCANNER): scanner/lex.yy.cc
+scanner/scanner: scanner/lex.yy.cc
 	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS)
 
-run: $(SCANNER)
-	./$(SCANNER) < tests/input_minimal.txt
+run: scanner/scanner
+	./scanner/scanner < tests/input_minimal.txt
 
-test: $(SCANNER)
-	@for f in tests/*.txt; do \
-	  echo "=============== $$f ==============="; \
-	  ./$(SCANNER) < $$f; \
-	done
+test: scanner/scanner
+	@for f in tests/*.txt; do echo "--- $$f"; ./scanner/scanner < $$f; done
 
-check: $(SCANNER)
-	@ok=1; for e in tests/expected/*.out; do \
+# compares the output with tests/expected/, the errors file must fail
+check: scanner/scanner
+	@ok=1; \
+	for e in tests/expected/*.out; do \
 	  f=tests/$$(basename $$e .out).txt; \
-	  if ./$(SCANNER) < $$f | diff -q - $$e >/dev/null; then echo "PASS  $$f"; \
+	  if ./scanner/scanner < $$f | diff -q - $$e > /dev/null; then echo "ok    $$f"; \
 	  else echo "FAIL  $$f"; ok=0; fi; \
 	done; \
-	if ./$(SCANNER) < tests/input_errors.txt >/dev/null 2>&1; then echo "FAIL  tests/input_errors.txt (errors not detected)"; ok=0; \
-	else echo "PASS  tests/input_errors.txt (errors detected)"; fi; \
+	if ./scanner/scanner < tests/input_errors.txt > /dev/null 2>&1; then echo "FAIL  tests/input_errors.txt"; ok=0; \
+	else echo "ok    tests/input_errors.txt"; fi; \
 	[ $$ok -eq 1 ]
 
 clean:
-	rm -f scanner/lex.yy.cc $(SCANNER)
+	rm -f scanner/lex.yy.cc scanner/scanner
 
 .PHONY: all run test check clean

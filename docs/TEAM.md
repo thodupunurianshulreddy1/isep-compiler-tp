@@ -1,38 +1,29 @@
-# Team split (2 people)
+# Who does what
 
-Each person **owns** one side of the compiler and **reviews** the other side.
-The teacher can ask either of us about any part, so reviewing is not optional.
+**A** = grammar side, **B** = scanner side. We both check each other's work, because they can ask either of us about anything.
 
-| Stage (slide 7) | Person A — *language / front end* | Person B — *tokens / back end* |
-|---|---|---|
-| **TP 01** 1. Grammar | ✅ owner — `grammar/grammar.txt` | reviewer |
-| **TP 01** 2. Scanner | reviewer | ✅ owner — `scanner/scanner.l`, `tests/`, `Makefile` |
-| **TP 01** Report | §1 overview, §2 grammar | §3 scanner, §4 testing |
-| 3. Parser (Bison) | ✅ owner | writes the parser test programs |
-| 4. AST | ✅ owner | reviewer |
-| 5. Intermediate code | reviewer | ✅ owner |
-| 6. NASM code generation | reviewer | ✅ owner |
-| 7. Executable + final tests | together | together |
+TP01
+- A: grammar.txt + report parts 1 and 2
+- B: scanner.l, tests, Makefile + report parts 3 and 4
 
-Why this split: the grammar and the parser are two views of the same rules, so one person keeps
-them consistent. The scanner produces the tokens, and the code generator consumes the final tree.
-Person B owns both ends of the pipeline plus the test suite that checks them.
+Next TPs (plan)
+- A: parser (bison) + AST
+- B: intermediate code + NASM generation
+- last session: we test everything together
 
-## Presentation prep (both of us)
+Before the presentation: A explains the grammar to B (priorities, why Assignment has no `;`, `=` vs `==`),
+and B explains the scanner to A (the 3 parts of the .l file, longest match, keywords before ID, the COMMENT state).
 
-- A explains to B: EBNF notation, precedence levels (Expression/Term/Factor), why `Assignment` has no `;`, `=` vs `==`.
-- B explains to A: the 3 sections of a `.l` file, longest match + first-rule-wins, `%x COMMENT`, error rule, `flex --c++` → `lex.yy.cc`.
+## git
 
-## Git workflow
+Work on a branch, then open a PR and the other one merges it:
 
-```bash
-git pull                              # always start from the latest main
-git switch -c grammar-else-if         # one branch per feature
-# ... edit ...
-make check                            # must PASS before pushing
-git add -A && git commit -m "Grammar: add else-if"
-git push -u origin grammar-else-if
-gh pr create --fill                   # open a Pull Request
 ```
-
-The other person reviews the Pull Request on GitHub and merges it. Nobody pushes directly to `main`.
+git pull
+git switch -c my-branch
+make check
+git add -A
+git commit -m "..."
+git push -u origin my-branch
+gh pr create --fill
+```
